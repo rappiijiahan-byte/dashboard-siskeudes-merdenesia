@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS Variables */
+:root {
+  --color-cyan: #06b6d4;
+  --color-magenta: #d946ef;
+  --color-dark-900: #0a0a0f;
+  --color-dark-800: #0f0f1a;
+  --color-dark-700: #1a1a2e;
+  --color-dark-600: #252540;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background: linear-gradient(180deg, #0a0a0f 0%, #0f0f1a 50%, #1a1a2e 100%);
+  min-height: 100vh;
+  color: #e5e5e5;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4, #d946ef);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee, #e879f9);
+}
+
+/* Selection */
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: #fff;
+}
+
+/* Custom Components */
+@layer components {
+  /* Glassmorphism Card */
+  .glass-card {
+    @apply bg-dark-700/50 backdrop-blur-xl border border-dark-500/50 rounded-xl;
+    box-shadow: 
+      0 4px 30px rgba(0, 0, 0, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Gradient Border */
+  .gradient-border {
+    position: relative;
+  }
+  
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #06b6d4, #d946ef);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Cyber Button */
+  .btn-cyber {
+    @apply relative px-6 py-3 font-semibold text-white rounded-lg overflow-hidden transition-all duration-300;
+    background: linear-gradient(135deg, #06b6d4 0%, #d946ef 100%);
+  }
+
+  .btn-cyber:hover {
+    @apply transform scale-105;
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.4), 0 0 60px rgba(217, 70, 239, 0.2);
+  }
+
+  .btn-cyber:active {
+    @apply transform scale-95;
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    @apply px-4 py-2 font-medium text-cyan-400 border border-cyan-500/50 rounded-lg transition-all duration-300;
+    background: transparent;
+  }
+
+  .btn-ghost:hover {
+    @apply bg-cyan-500/10 border-cyan-400;
+  }
+
+  /* Input Field */
+  .input-cyber {
+    @apply w-full px-4 py-3 bg-dark-800/80 border border-dark-500 rounded-lg text-gray-100 placeholder-gray-500 transition-all duration-300;
+  }
+
+  .input-cyber:focus {
+    @apply outline-none border-cyan-500;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+  }
+
+  /* Sidebar Item */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 transition-all duration-200;
+  }
+
+  .sidebar-item:hover {
+    @apply bg-dark-600/50 text-gray-100;
+  }
+
+  .sidebar-item.active {
+    @apply bg-gradient-to-r from-cyan-500/20 to-magenta-500/20 text-cyan-400;
+    border-left: 3px solid #06b6d4;
+  }
+
+  /* Status Badge */
+  .badge-draft {
+    @apply px-3 py-1 text-xs font-medium rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+
+  .badge-final {
+    @apply px-3 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+
+  .badge-archived {
+    @apply px-3 py-1 text-xs font-medium rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30;
+  }
+
+  /* Table Styles */
+  .table-cyber {
+    @apply w-full;
+  }
+
+  .table-cyber thead {
+    @apply bg-dark-700/80;
+  }
+
+  .table-cyber th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider;
+  }
+
+  .table-cyber tbody tr {
+    @apply border-b border-dark-600/50 transition-colors duration-200;
+  }
+
+  .table-cyber tbody tr:hover {
+    @apply bg-dark-600/30;
+  }
+
+  .table-cyber td {
+    @apply px-4 py-3 text-sm text-gray-300;
+  }
+
+  /* Glow Text */
+  .text-glow-cyan {
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.5), 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+
+  .text-glow-magenta {
+    text-shadow: 0 0 10px rgba(217, 70, 239, 0.5), 0 0 20px rgba(217, 70, 239, 0.3);
+  }
+}
+
+/* Title Bar Styles */
+.titlebar {
+  -webkit-app-region: drag;
+}
+
+.titlebar button, 
+.titlebar a {
+  -webkit-app-region: no-drag;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
