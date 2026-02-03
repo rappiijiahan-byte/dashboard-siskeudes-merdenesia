@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppStore, usePembiayaan1Store } from '../stores'
 
 function Pembiayaan1Page() {
-    const { addNotification, isArchiveMode, selectedYear } = useAppStore()
+    const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem } = useAppStore()
     const { kategoriPembiayaan1, addItem, updateItem, deleteItem, getTotalPembiayaan1, getSubTotal } = usePembiayaan1Store()
     const [expandedKategori, setExpandedKategori] = useState(['6.1'])
     const [expandedSub, setExpandedSub] = useState(['6.1.1'])
@@ -32,37 +32,13 @@ function Pembiayaan1Page() {
     }
 
     const handleAddItem = (kategoriKode, subKode) => {
-        const kode = prompt('Masukkan Kode Rekening:', subKode + '.01')
-        if (!kode) return
-
-        const uraian = prompt('Masukkan Uraian:', '')
-        if (!uraian) return
-
-        const jumlahStr = prompt('Masukkan Jumlah (Rp):', '0')
-        const jumlah = parseInt(jumlahStr?.replace(/\D/g, '')) || 0
-
-        addItem(kategoriKode, subKode, { kode, uraian, jumlah })
-        addNotification({
-            type: 'success',
-            message: 'Item berhasil ditambahkan!'
-        })
+        setEditingItem({ mode: 'add', pageType: 'P1', katKode: kategoriKode, subKode })
+        openModal('pembiayaan')
     }
 
     const handleEditItem = (item, kategoriKode, subKode) => {
-        const kode = prompt('Edit Kode Rekening:', item.kode)
-        if (!kode) return
-
-        const uraian = prompt('Edit Uraian:', item.uraian)
-        if (!uraian) return
-
-        const jumlahStr = prompt('Edit Jumlah (Rp):', item.jumlah.toString())
-        const jumlah = parseInt(jumlahStr?.replace(/\D/g, '')) || item.jumlah
-
-        updateItem(kategoriKode, subKode, item.id, { kode, uraian, jumlah })
-        addNotification({
-            type: 'success',
-            message: 'Item berhasil diupdate!'
-        })
+        setEditingItem({ mode: 'edit', pageType: 'P1', katKode: kategoriKode, subKode, data: item })
+        openModal('pembiayaan')
     }
 
     const handleDeleteItem = (item, kategoriKode, subKode) => {

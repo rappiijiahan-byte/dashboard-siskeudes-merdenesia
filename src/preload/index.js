@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Wahyu Hidayatulloh. All rights reserved.
+
 import { contextBridge, ipcRenderer } from 'electron'
 
 // Expose protected methods to renderer
@@ -34,9 +36,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
         saveBelanja: (data) => ipcRenderer.invoke('db:belanja:save', data),
     },
 
+    // Version Control - SQLite persistence
+    versionControl: {
+        // Load all version data at once
+        loadVersionData: () => ipcRenderer.invoke('db:loadVersionData'),
+
+        // Branches
+        getBranches: () => ipcRenderer.invoke('db:getBranches'),
+        saveBranch: (branch) => ipcRenderer.invoke('db:saveBranch', branch),
+        switchBranch: (branchName) => ipcRenderer.invoke('db:switchBranch', branchName),
+        updateBranchSnapshot: (branchName, snapshotId) => ipcRenderer.invoke('db:updateBranchSnapshot', branchName, snapshotId),
+
+        // Commits
+        getCommits: (branchName) => ipcRenderer.invoke('db:getCommits', branchName),
+        saveCommit: (commit) => ipcRenderer.invoke('db:saveCommit', commit),
+        updateCommitStatus: (commitId, status) => ipcRenderer.invoke('db:updateCommitStatus', commitId, status),
+
+        // Snapshots
+        saveSnapshot: (snapshot) => ipcRenderer.invoke('db:saveSnapshot', snapshot),
+        getSnapshot: (snapshotId) => ipcRenderer.invoke('db:getSnapshot', snapshotId),
+        getAllSnapshots: () => ipcRenderer.invoke('db:getAllSnapshots'),
+    },
+
     // Export operations
     export: {
         toPDF: (data) => ipcRenderer.invoke('export:pdf', data),
         toExcel: (data) => ipcRenderer.invoke('export:excel', data),
     }
 })
+

@@ -1,0 +1,51 @@
+Tutorial: Cara Menggunakan Version Control APBDes
+Sistem "Version Control" pada aplikasi ini memungkinkan Anda untuk mengelola perubahan Anggaran Desa (APBDes) layaknya seorang programmer mengelola kode. Anda bisa menyimpan versi (commit), membuat cabang alternatif (branch), dan melihat riwayat perubahan.
+
+1. Menyimpan Versi Baru (Commit)
+Setiap kali Anda selesai melakukan perubahan penting (misalnya: selesai input Pendapatan atau Belanja), Anda disarankan untuk menyimpan versi baru.
+
+Masuk ke Dashboard.
+Klik tombol Commit Baru di pojok kanan atas.
+Akan muncul Modal (Jendela) Commit.
+Masukkan Pesan Commit yang menjelaskan perubahan yang Anda lakukan (Contoh: "Selesai input belanja bidang 1", "Revisi pendapatan asli desa").
+Klik Simpan Commit.
+Versi baru akan tersimpan dan muncul di daftar Riwayat.
+2. Melihat Riwayat Versi (History)
+Untuk melihat jejak perubahan yang pernah dilakukan:
+
+Klik menu Riwayat Versi di Sidebar sebelah kiri.
+Anda akan melihat:
+Branches: Daftar cabang anggaran (skenario alternatif).
+Commit History: Garis waktu perubahan dari yang terbaru ke terlama.
+Klik pada salah satu commit di garis waktu untuk melihat detailnya.
+Di panel detail, Anda bisa melihat:
+Pesan commit.
+Penulis dan waktu perubahan.
+Statistik perubahan (Added/Modified/Deleted).
+3. Mengelola Cabang (Branch)
+Cabang (Branch) berguna jika Anda ingin membuat "Skenario Alternatif" tanpa mengganggu data utama. Misalnya: "Skenario Infrastruktur" vs "Skenario Pemberdayaan".
+
+Membuat Branch Baru
+Di halaman Riwayat Versi, klik tombol New Branch.
+Beri nama branch baru (Contoh: draft-perubahan, skenario-b).
+Anda akan otomatis berpindah ke branch tersebut. Semua perubahan yang Anda lakukan sekarang hanya akan tersimpan di branch ini.
+Pindah Branch
+Di halaman Riwayat Versi, lihat panel Branches di sebelah kiri.
+Klik pada nama branch yang ingin Anda aktifkan (Contoh: main untuk kembali ke data utama).
+Data di seluruh aplikasi akan berubah sesuai dengan kondisi terakhir branch tersebut.
+4. Mengembalikan Versi (Revert)
+Jika terjadi kesalahan fatal dan Anda ingin kembali ke kondisi sebelumnya:
+
+Buka Riwayat Versi.
+Pilih versi lama yang ingin Anda gunakan kembali.
+Klik tombol Revert di panel detail commit.
+Konfirmasi tindakan tersebut.
+Data saat ini akan ditimpa dengan data dari versi yang Anda pilih.
+Tips: Gunakan fitur ini dengan hati-hati karena perubahan yang belum disimpan (di-commit) setelah versi tersebut mungkin akan hilang.
+
+5. Export Data
+Anda dapat mencetak atau mengunduh data dari versi manapun:
+
+Pilih salah satu commit di Riwayat Versi.
+Klik tombol Export.
+Pilih format Excel atau PDF.

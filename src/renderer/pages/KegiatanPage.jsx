@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppStore, useKegiatanStore } from '../stores'
 
 function KegiatanPage() {
-    const { addNotification, isArchiveMode, selectedYear } = useAppStore()
+    const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem } = useAppStore()
     const {
         bidangKegiatan,
         addSubBidang, updateSubBidang, deleteSubBidang,
@@ -36,68 +36,34 @@ function KegiatanPage() {
 
     // Add handlers
     const handleAddSubBidang = (bidangKode) => {
-        const kode = prompt('Masukkan kode Sub Bidang:')
-        const nama = prompt('Masukkan nama Sub Bidang:')
-        if (kode && nama) {
-            addSubBidang(bidangKode, { kode, nama })
-            addNotification({ type: 'success', message: 'Sub Bidang berhasil ditambahkan' })
-        }
+        setEditingItem({ mode: 'add', type: 'subBidang', parentKeys: { bidang: bidangKode } })
+        openModal('kegiatanForm')
     }
 
     const handleAddKegiatan = (bidangKode, subKode) => {
-        const kode = prompt('Masukkan kode Kegiatan:')
-        const nama = prompt('Masukkan nama Kegiatan:')
-        if (kode && nama) {
-            addKegiatan(bidangKode, subKode, { kode, nama })
-            addNotification({ type: 'success', message: 'Kegiatan berhasil ditambahkan' })
-        }
+        setEditingItem({ mode: 'add', type: 'kegiatan', parentKeys: { bidang: bidangKode, sub: subKode } })
+        openModal('kegiatanForm')
     }
 
     const handleAddPaket = (bidangKode, subKode, kegKode) => {
-        const nama = prompt('Masukkan nama Paket:')
-        const uraianOutput = prompt('Masukkan uraian output:')
-        const volume = prompt('Masukkan volume:', '1')
-        const satuan = prompt('Masukkan satuan:', 'OB (Orang/Bulan)')
-        if (nama && uraianOutput) {
-            addPaket(bidangKode, subKode, kegKode, {
-                nama,
-                uraianOutput,
-                volume: parseFloat(volume) || 1,
-                satuan: satuan || 'Unit'
-            })
-            addNotification({ type: 'success', message: 'Paket berhasil ditambahkan' })
-        }
+        setEditingItem({ mode: 'add', type: 'paket', parentKeys: { bidang: bidangKode, sub: subKode, keg: kegKode } })
+        openModal('kegiatanForm')
     }
 
     // Edit handlers
     const handleEditSubBidang = (bidangKode, sub) => {
-        const nama = prompt('Edit nama Sub Bidang:', sub.nama)
-        if (nama && nama !== sub.nama) {
-            updateSubBidang(bidangKode, sub.kode, { nama })
-            addNotification({ type: 'success', message: 'Sub Bidang berhasil diupdate' })
-        }
+        setEditingItem({ mode: 'edit', type: 'subBidang', data: sub, parentKeys: { bidang: bidangKode } })
+        openModal('kegiatanForm')
     }
 
     const handleEditKegiatan = (bidangKode, subKode, keg) => {
-        const nama = prompt('Edit nama Kegiatan:', keg.nama)
-        if (nama && nama !== keg.nama) {
-            updateKegiatan(bidangKode, subKode, keg.kode, { nama })
-            addNotification({ type: 'success', message: 'Kegiatan berhasil diupdate' })
-        }
+        setEditingItem({ mode: 'edit', type: 'kegiatan', data: keg, parentKeys: { bidang: bidangKode, sub: subKode } })
+        openModal('kegiatanForm')
     }
 
     const handleEditPaket = (bidangKode, subKode, kegKode, paket) => {
-        const nama = prompt('Edit nama Paket:', paket.nama)
-        const volume = prompt('Edit volume:', paket.volume)
-        const satuan = prompt('Edit satuan:', paket.satuan)
-        if (nama) {
-            updatePaket(bidangKode, subKode, kegKode, paket.id, {
-                nama,
-                volume: parseFloat(volume) || paket.volume,
-                satuan: satuan || paket.satuan
-            })
-            addNotification({ type: 'success', message: 'Paket berhasil diupdate' })
-        }
+        setEditingItem({ mode: 'edit', type: 'paket', data: paket, parentKeys: { bidang: bidangKode, sub: subKode, keg: kegKode } })
+        openModal('kegiatanForm')
     }
 
     // Delete handlers
@@ -120,6 +86,11 @@ function KegiatanPage() {
             deletePaket(bidangKode, subKode, kegKode, paket.id)
             addNotification({ type: 'success', message: 'Paket berhasil dihapus' })
         }
+    }
+
+    const handleViewPaket = (paket) => {
+        setEditingItem(paket)
+        openModal('viewPaket')
     }
 
     const totalPaket = getTotalPaket()
@@ -344,30 +315,42 @@ function KegiatanPage() {
                                                                                     <td className="py-2 pr-4 text-gray-400">{paket.uraianOutput}</td>
                                                                                     <td className="py-2 pr-4 text-right text-gray-300">{paket.volume.toFixed(2)}</td>
                                                                                     <td className="py-2 pr-4 text-gray-400">{paket.satuan}</td>
-                                                                                    {!isArchived && (
-                                                                                        <td className="py-2">
-                                                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                                                <button
-                                                                                                    onClick={() => handleEditPaket(bidang.kode, sub.kode, keg.kode, paket)}
-                                                                                                    className="p-1 rounded hover:bg-dark-500 text-gray-400 hover:text-cyan-400"
-                                                                                                    title="Edit"
-                                                                                                >
-                                                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                                                                    </svg>
-                                                                                                </button>
-                                                                                                <button
-                                                                                                    onClick={() => handleDeletePaket(bidang.kode, sub.kode, keg.kode, paket)}
-                                                                                                    className="p-1 rounded hover:bg-dark-500 text-gray-400 hover:text-red-400"
-                                                                                                    title="Hapus"
-                                                                                                >
-                                                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                                                    </svg>
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        </td>
-                                                                                    )}
+                                                                                    <td className="py-2">
+                                                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                            <button
+                                                                                                onClick={() => handleViewPaket(paket)}
+                                                                                                className="p-1 rounded hover:bg-dark-500 text-gray-400 hover:text-cyan-400"
+                                                                                                title="Lihat Rincian"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                            {!isArchiveMode() && (
+                                                                                                <>
+                                                                                                    <button
+                                                                                                        onClick={() => handleEditPaket(bidang.kode, sub.kode, keg.kode, paket)}
+                                                                                                        className="p-1 rounded hover:bg-dark-500 text-gray-400 hover:text-cyan-400"
+                                                                                                        title="Edit"
+                                                                                                    >
+                                                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                                                        </svg>
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                        onClick={() => handleDeletePaket(bidang.kode, sub.kode, keg.kode, paket)}
+                                                                                                        className="p-1 rounded hover:bg-dark-500 text-gray-400 hover:text-red-400"
+                                                                                                        title="Hapus"
+                                                                                                    >
+                                                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                                                        </svg>
+                                                                                                    </button>
+                                                                                                </>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>
