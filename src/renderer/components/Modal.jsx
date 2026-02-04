@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, usePendapatanStore, useBelanjaStore, useVersionStore, useKegiatanStore, usePembiayaan1Store, usePembiayaan2Store } from '../stores'
-import { exportToExcel, exportToPDF, downloadFile } from '../services/exportService'
+import { exportToExcel, downloadFile } from '../services/exportService'
 
 function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     if (!isOpen) return null
@@ -316,13 +316,6 @@ export function ExportModal() {
                     type: 'success',
                     message: `Excel berhasil diexport: ${filename}`
                 })
-            } else if (format === 'pdf') {
-                exportToPDF(exportData)
-
-                addNotification({
-                    type: 'success',
-                    message: 'PDF dibuka di tab baru. Klik "Cetak" untuk menyimpan.'
-                })
             }
 
             closeModal('export')
@@ -342,7 +335,7 @@ export function ExportModal() {
             <div className="space-y-4">
                 <p className="text-gray-400">Pilih format dokumen yang ingin di-export:</p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                     <button
                         onClick={() => handleExport('excel')}
                         disabled={isExporting}
@@ -356,20 +349,6 @@ export function ExportModal() {
                         <span className="font-medium text-white">Excel (.xlsx)</span>
                         <span className="text-xs text-gray-500">Data lengkap</span>
                     </button>
-
-                    <button
-                        onClick={() => handleExport('pdf')}
-                        disabled={isExporting}
-                        className="p-4 glass-card hover:border-cyan-500/50 transition-colors flex flex-col items-center gap-2 disabled:opacity-50"
-                    >
-                        <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <span className="font-medium text-white">PDF</span>
-                        <span className="text-xs text-gray-500">Format cetak</span>
-                    </button>
                 </div>
 
                 {isExporting && (
@@ -380,7 +359,6 @@ export function ExportModal() {
 
                 <div className="text-xs text-gray-500 mt-4">
                     <p>📊 <strong>Excel</strong>: 3 sheet (Pendapatan, Belanja, Ringkasan) dengan format lengkap</p>
-                    <p>📄 <strong>PDF</strong>: Format cetak dengan tabel dan ringkasan</p>
                 </div>
             </div>
         </Modal>

@@ -424,7 +424,9 @@ export const useBelanjaStore = create((set, get) => ({
             } : s)
         } : b);
         return { bidangData: state.recalculateTotals(newData) };
-    })
+    }),
+
+
 }))
 
 // Version/Commit Store - With Real Snapshots

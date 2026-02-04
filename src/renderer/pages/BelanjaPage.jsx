@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, useBelanjaStore, usePendapatanStore } from '../stores'
-import { exportRowToPDF, exportToExcel, exportToPDF, downloadFile } from '../services/exportService'
+import { exportToExcel, downloadFile } from '../services/exportService'
 
 function BelanjaPage() {
     const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem, currentProject } = useAppStore()
@@ -83,9 +83,7 @@ function BelanjaPage() {
         }
     }
 
-    const handleExportPDF = () => {
-        exportToPDF({ pendapatan, belanja: bidangData, tahun: selectedYear, version: currentProject?.currentVersion || '1.0' })
-    }
+
 
     const handleDelete = (type, keys) => {
         if (window.confirm(`Hapus ${type} ini?`)) {
@@ -103,15 +101,8 @@ function BelanjaPage() {
         }
     }
 
-    const ActionButtons = ({ onAdd, onEdit, onDelete, onExport }) => (
+    const ActionButtons = ({ onAdd, onEdit, onDelete }) => (
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {onExport && (
-                <button onClick={(e) => { e.stopPropagation(); onExport() }} className="p-1 hover:bg-orange-500/20 text-orange-400 rounded transition-colors" title="Export PDF">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                </button>
-            )}
             {onAdd && (
                 <button onClick={(e) => { e.stopPropagation(); onAdd() }} className="p-1 hover:bg-cyan-500/20 text-cyan-400 rounded transition-colors" title="Tambah">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -142,10 +133,6 @@ function BelanjaPage() {
                     <button onClick={handleExportExcel} className="p-2 px-4 bg-green-600/20 text-green-400 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-all flex items-center gap-2 text-sm font-semibold">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                         Export XLS
-                    </button>
-                    <button onClick={handleExportPDF} className="p-2 px-4 bg-orange-600/20 text-orange-400 border border-orange-600/30 rounded-lg hover:bg-orange-600/30 transition-all flex items-center gap-2 text-sm font-semibold">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                        Export PDF
                     </button>
                 </div>
             </div>
@@ -327,7 +314,6 @@ function BelanjaPage() {
                                                                                 <td className="p-2">
                                                                                     <div className="flex justify-center">
                                                                                         <ActionButtons
-                                                                                            onExport={() => exportRowToPDF({ rabCode: r.kode }, item, selectedYear)}
                                                                                             onEdit={() => handleEdit('rabRinci', item, { bidang: bidang.kode, sub: sub.kode, keg: keg.id, pkt: pkt.id, rab: r.id })}
                                                                                             onDelete={() => handleDelete('rabRinci', { bidang: bidang.kode, sub: sub.kode, keg: keg.id, pkt: pkt.id, rab: r.id, id: item.id })}
                                                                                         />
