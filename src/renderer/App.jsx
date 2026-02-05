@@ -10,7 +10,7 @@ import BelanjaPage from './pages/BelanjaPage'
 import Pembiayaan1Page from './pages/Pembiayaan1Page'
 import Pembiayaan2Page from './pages/Pembiayaan2Page'
 import HistoryPage from './pages/HistoryPage'
-import { CommitModal, PendapatanModal, BelanjaModal, ExportModal, NewBranchModal, Notifications, PaketDetailModal, KegiatanFormsModal, PembiayaanModal, BelanjaFormsModal, CompareModal } from './components/Modal'
+import { CommitModal, PendapatanModal, BelanjaModal, ExportModal, NewBranchModal, Notifications, PaketDetailModal, KegiatanFormsModal, PembiayaanModal, BelanjaFormsModal, CompareModal, AddYearModal, BackupModal } from './components/Modal'
 import { useVersionStore } from './stores'
 
 function App() {
@@ -50,7 +50,6 @@ function App() {
             </Layout>
 
             {/* Global Modals */}
-            {/* Global Modals */}
             <CommitModal />
             <PendapatanModal />
             <BelanjaModal />
@@ -62,9 +61,10 @@ function App() {
             <PembiayaanModal />
             <BelanjaFormsModal />
             <CompareModal />
+            <AddYearModal />
+            <BackupModal />
         </>
     )
 }
 
 export default App
-

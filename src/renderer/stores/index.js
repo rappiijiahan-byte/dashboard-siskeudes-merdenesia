@@ -1,19 +1,57 @@
 // Copyright (c) 2026 Wahyu Hidayatulloh. All rights reserved.
 
 import { create } from 'zustand'
+import { saveYearSession, loadYearSession, clearSession } from '../services/backupService'
 
 // App Store - Global state management
 export const useAppStore = create((set, get) => ({
     // Current Year
     selectedYear: 2026,
-    setSelectedYear: (year) => set({ selectedYear: year }),
+    setSelectedYear: (year) => {
+        const currentYear = get().selectedYear
+        if (currentYear === year) return
+
+        console.log(`Switching year from ${currentYear} to ${year}`)
+
+        // 1. Save current session
+        saveYearSession(currentYear)
+
+        // 2. Load target session
+        const hasData = loadYearSession(year)
+        if (!hasData) {
+            clearSession()
+            get().addNotification?.({ type: 'info', message: `Memulai sesi kosong tahun ${year}` })
+        } else {
+            get().addNotification?.({ type: 'success', message: `Data tahun ${year} dimuat` })
+        }
+
+        set({ selectedYear: year })
+    },
 
     // Years list
     years: [
+        { tahun: 2027, status: 'Planned', proyek_aktif: 'proj-2027' },
         { tahun: 2026, status: 'Active', proyek_aktif: 'proj-2026' },
         { tahun: 2025, status: 'Archived', proyek_aktif: 'proj-2025' },
         { tahun: 2024, status: 'Archived', proyek_aktif: 'proj-2024' }
     ],
+
+    // Add new year
+    addYear: (year) => {
+        const currentYear = get().selectedYear
+        // Save current session before switch
+        saveYearSession(currentYear)
+
+        // Clear data for new year
+        clearSession()
+
+        set((state) => ({
+            years: [{ tahun: year, status: 'Planned', proyek_aktif: `proj-${year}` }, ...state.years],
+            selectedYear: year
+        }))
+
+        get().addNotification?.({ type: 'success', message: `Tahun ${year} dibuat & aktif` })
+    },
 
     // Current project info
     currentProject: {
@@ -35,7 +73,10 @@ export const useAppStore = create((set, get) => ({
         kegiatanForm: false,
         pembiayaan: false,
         compare: false,
-        belanjaForm: false
+        belanjaForm: false,
+        belanjaForm: false,
+        addYear: false,
+        backup: false
     },
 
     openModal: (modalName) => set((state) => ({
@@ -728,18 +769,18 @@ export const usePembiayaan1Store = create((set, get) => ({
                     kode: '6.1.1',
                     nama: 'SILPA Tahun Sebelumnya',
                     items: [
-                        { id: 1, kode: '6.1.1.01.01', uraian: 'SILPA Pendapatan Asli Desa', jumlah: 0 },
-                        { id: 2, kode: '6.1.1.01.02', uraian: 'SILPA Alokasi Dana Desa', jumlah: 0 },
-                        { id: 3, kode: '6.1.1.01.03', uraian: 'SILPA Dana Desa (Dropping APBN)', jumlah: 0 },
-                        { id: 4, kode: '6.1.1.01.04', uraian: 'SILPA Penerimaan Bagi Hasil Pajak Retribusi Daerah', jumlah: 0 },
-                        { id: 5, kode: '6.1.1.01.05', uraian: 'SILPA Penerimaan Bantuan Keuangan Kab/Kota', jumlah: 0 }
+                        { id: 1, kode: '6.1.1.01.01', uraian: 'SILPA Pendapatan Asli Desa', jumlah: 0, rapRinci: [] },
+                        { id: 2, kode: '6.1.1.01.02', uraian: 'SILPA Alokasi Dana Desa', jumlah: 0, rapRinci: [] },
+                        { id: 3, kode: '6.1.1.01.03', uraian: 'SILPA Dana Desa (Dropping APBN)', jumlah: 0, rapRinci: [] },
+                        { id: 4, kode: '6.1.1.01.04', uraian: 'SILPA Penerimaan Bagi Hasil Pajak Retribusi Daerah', jumlah: 0, rapRinci: [] },
+                        { id: 5, kode: '6.1.1.01.05', uraian: 'SILPA Penerimaan Bantuan Keuangan Kab/Kota', jumlah: 0, rapRinci: [] }
                     ]
                 },
                 {
                     kode: '6.1.2',
                     nama: 'Pencairan Dana Cadangan',
                     items: [
-                        { id: 6, kode: '6.1.2.01', uraian: 'Pencairan Dana Cadangan', jumlah: 0 }
+                        { id: 6, kode: '6.1.2.01', uraian: 'Pencairan Dana Cadangan', jumlah: 0, rapRinci: [] }
                     ]
                 },
                 {
@@ -758,7 +799,7 @@ export const usePembiayaan1Store = create((set, get) => ({
                     ...kat,
                     subKategori: kat.subKategori.map(sub =>
                         sub.kode === subKode
-                            ? { ...sub, items: [...sub.items, { ...item, id: Date.now() }] }
+                            ? { ...sub, items: [...sub.items, { ...item, id: Date.now(), rapRinci: [], jumlah: 0 }] }
                             : sub
                     )
                 }
@@ -801,10 +842,104 @@ export const usePembiayaan1Store = create((set, get) => ({
         )
     })),
 
+    addRapRinci: (kategoriKode, subKode, itemId, rinci) => set((state) => {
+        // Calculate new total
+        const total = (rinci.volume || 0) * (rinci.hargaSatuan || 0)
+        return {
+            kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item =>
+                                item.id === itemId ? {
+                                    ...item,
+                                    rapRinci: [...(item.rapRinci || []), { ...rinci, id: Date.now(), jumlah: total }],
+                                    jumlah: (item.jumlah || 0) + total
+                                } : item
+                            )
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
+
+    updateRapRinci: (kategoriKode, subKode, itemId, rinciId, updates) => set((state) => {
+        return {
+            kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item => {
+                                if (item.id !== itemId) return item
+
+                                const updatedRinci = (item.rapRinci || []).map(r =>
+                                    r.id === rinciId ? { ...r, ...updates, jumlah: (updates.volume || r.volume || 0) * (updates.hargaSatuan || r.hargaSatuan || 0) } : r
+                                )
+                                const newTotal = updatedRinci.reduce((acc, r) => acc + r.jumlah, 0)
+
+                                return { ...item, rapRinci: updatedRinci, jumlah: newTotal }
+                            })
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
+
+    deleteRapRinci: (kategoriKode, subKode, itemId, rinciId) => set((state) => {
+        return {
+            kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item => {
+                                if (item.id !== itemId) return item
+                                const updatedRinci = (item.rapRinci || []).filter(r => r.id !== rinciId)
+                                const newTotal = updatedRinci.reduce((acc, r) => acc + r.jumlah, 0)
+                                return { ...item, rapRinci: updatedRinci, jumlah: newTotal }
+                            })
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
+
     addSubKategori: (kategoriKode, subKategori) => set((state) => ({
         kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
             kat.kode === kategoriKode
                 ? { ...kat, subKategori: [...kat.subKategori, { ...subKategori, items: [] }] }
+                : kat
+        )
+    })),
+
+    updateSubKategori: (kategoriKode, subKode, updates) => set((state) => ({
+        kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
+            kat.kode === kategoriKode
+                ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? { ...sub, ...updates } : sub
+                    )
+                }
+                : kat
+        )
+    })),
+
+    deleteSubKategori: (kategoriKode, subKode) => set((state) => ({
+        kategoriPembiayaan1: state.kategoriPembiayaan1.map(kat =>
+            kat.kode === kategoriKode
+                ? {
+                    ...kat,
+                    subKategori: kat.subKategori.filter(sub => sub.kode !== subKode)
+                }
                 : kat
         )
     })),
@@ -837,15 +972,15 @@ export const usePembiayaan2Store = create((set, get) => ({
                     kode: '6.2.1',
                     nama: 'Pembentukan Dana Cadangan',
                     items: [
-                        { id: 1, kode: '6.2.1.01', uraian: 'Pembentukan Dana Cadangan', jumlah: 0 }
+                        { id: 1, kode: '6.2.1.01', uraian: 'Pembentukan Dana Cadangan', jumlah: 0, rapRinci: [] }
                     ]
                 },
                 {
                     kode: '6.2.2',
                     nama: 'Penyertaan Modal Desa',
                     items: [
-                        { id: 2, kode: '6.2.2.01.01', uraian: 'Penyertaan Modal BUMDes (Ketahanan Pangan)', jumlah: 0 },
-                        { id: 3, kode: '6.2.2.01.02', uraian: 'Penyertaan Modal Koperasi Desa Merah Putih', jumlah: 0 }
+                        { id: 2, kode: '6.2.2.01.01', uraian: 'Penyertaan Modal BUMDes (Ketahanan Pangan)', jumlah: 0, rapRinci: [] },
+                        { id: 3, kode: '6.2.2.01.02', uraian: 'Penyertaan Modal Koperasi Desa Merah Putih', jumlah: 0, rapRinci: [] }
                     ]
                 },
                 {
@@ -864,7 +999,7 @@ export const usePembiayaan2Store = create((set, get) => ({
                     ...kat,
                     subKategori: kat.subKategori.map(sub =>
                         sub.kode === subKode
-                            ? { ...sub, items: [...sub.items, { ...item, id: Date.now() }] }
+                            ? { ...sub, items: [...sub.items, { ...item, id: Date.now(), rapRinci: [], jumlah: 0 }] }
                             : sub
                     )
                 }
@@ -906,6 +1041,105 @@ export const usePembiayaan2Store = create((set, get) => ({
                 : kat
         )
     })),
+
+    addSubKategori: (kategoriKode, subKategori) => set((state) => ({
+        kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+            kat.kode === kategoriKode
+                ? { ...kat, subKategori: [...kat.subKategori, { ...subKategori, items: [] }] }
+                : kat
+        )
+    })),
+
+    updateSubKategori: (kategoriKode, subKode, updates) => set((state) => ({
+        kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+            kat.kode === kategoriKode
+                ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? { ...sub, ...updates } : sub
+                    )
+                }
+                : kat
+        )
+    })),
+
+    deleteSubKategori: (kategoriKode, subKode) => set((state) => ({
+        kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+            kat.kode === kategoriKode
+                ? {
+                    ...kat,
+                    subKategori: kat.subKategori.filter(sub => sub.kode !== subKode)
+                }
+                : kat
+        )
+    })),
+
+    addRapRinci: (kategoriKode, subKode, itemId, rinci) => set((state) => {
+        const total = (rinci.volume || 0) * (rinci.hargaSatuan || 0)
+        return {
+            kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item =>
+                                item.id === itemId ? {
+                                    ...item,
+                                    rapRinci: [...(item.rapRinci || []), { ...rinci, id: Date.now(), jumlah: total }],
+                                    jumlah: (item.jumlah || 0) + total
+                                } : item
+                            )
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
+
+    updateRapRinci: (kategoriKode, subKode, itemId, rinciId, updates) => set((state) => {
+        return {
+            kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item => {
+                                if (item.id !== itemId) return item
+                                const updatedRinci = (item.rapRinci || []).map(r =>
+                                    r.id === rinciId ? { ...r, ...updates, jumlah: (updates.volume || r.volume || 0) * (updates.hargaSatuan || r.hargaSatuan || 0) } : r
+                                )
+                                const newTotal = updatedRinci.reduce((acc, r) => acc + r.jumlah, 0)
+                                return { ...item, rapRinci: updatedRinci, jumlah: newTotal }
+                            })
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
+
+    deleteRapRinci: (kategoriKode, subKode, itemId, rinciId) => set((state) => {
+        return {
+            kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
+                kat.kode === kategoriKode ? {
+                    ...kat,
+                    subKategori: kat.subKategori.map(sub =>
+                        sub.kode === subKode ? {
+                            ...sub,
+                            items: sub.items.map(item => {
+                                if (item.id !== itemId) return item
+                                const updatedRinci = (item.rapRinci || []).filter(r => r.id !== rinciId)
+                                const newTotal = updatedRinci.reduce((acc, r) => acc + r.jumlah, 0)
+                                return { ...item, rapRinci: updatedRinci, jumlah: newTotal }
+                            })
+                        } : sub
+                    )
+                } : kat
+            )
+        }
+    }),
 
     addSubKategori: (kategoriKode, subKategori) => set((state) => ({
         kategoriPembiayaan2: state.kategoriPembiayaan2.map(kat =>
@@ -946,41 +1180,41 @@ export const useKegiatanStore = create((set, get) => ({
                         {
                             kode: '04.2002.01.01.01.',
                             nama: 'Penyediaan Penghasilan Tetap dan Tunjangan Kepala Desa',
+                            lokasi: 'Kantor Desa',
+                            waktu: '12 Bulan',
+                            namaPelaksana: 'Sekretaris Desa',
+                            jabatanPPKD: 'Kaur Keuangan',
+                            keluaran: 'Tersedianya Siltap dan Tunjangan',
+                            volumeKeluaran: 12,
+                            satuan: 'Bulan',
+                            pagu: 41604000,
                             paket: [
                                 {
                                     id: 1,
+                                    noID: '001',
                                     nama: 'Penghasilan Tetap Kepala Desa',
-                                    uraianOutput: 'Penghasilan Tetap Kepala Desa',
-                                    volume: 1,
-                                    satuan: 'OB',
                                     nilai: 39204000,
-                                    sumberDana: 'Alokasi Dana Desa',
                                     polaKegiatan: 'Swakelola',
+                                    targetOutput: 12,
+                                    satuan: 'OB',
+                                    uraianOutput: 'Pembayaran Siltap Kades',
+                                    sumberDana: 'Alokasi Dana Desa',
                                     sifatKegiatan: 'Non Fisik-Lainnya',
+                                    lokasiKegiatan: 'Kantor Desa',
                                     pktd: 'NON-PKTD'
                                 },
                                 {
                                     id: 2,
+                                    noID: '002',
                                     nama: 'Tunjangan Jabatan Kepala Desa',
-                                    uraianOutput: 'Tunjangan Kepala Desa',
-                                    volume: 1,
-                                    satuan: 'OB',
                                     nilai: 2400000,
-                                    sumberDana: 'Alokasi Dana Desa',
                                     polaKegiatan: 'Swakelola',
-                                    sifatKegiatan: 'Non Fisik-Lainnya',
-                                    pktd: 'NON-PKTD'
-                                },
-                                {
-                                    id: 3,
-                                    nama: 'Tunjangan Kinerja Kades',
-                                    uraianOutput: 'Tunjangan Kepala Desa',
-                                    volume: 1,
+                                    targetOutput: 12,
                                     satuan: 'OB',
-                                    nilai: 0,
-                                    sumberDana: 'Pendapatan Asli Desa',
-                                    polaKegiatan: 'Swakelola',
+                                    uraianOutput: 'Pembayaran Tunjangan Kades',
+                                    sumberDana: 'Alokasi Dana Desa',
                                     sifatKegiatan: 'Non Fisik-Lainnya',
+                                    lokasiKegiatan: 'Kantor Desa',
                                     pktd: 'NON-PKTD'
                                 }
                             ]

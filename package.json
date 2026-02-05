@@ -14,8 +14,8 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
-    "better-sqlite3": "^12.6.2",
     "exceljs": "^4.4.0",
+    "sql.js": "^1.13.0",
     "uuid": "^9.0.0",
     "zustand": "^4.5.0"
   },
@@ -43,7 +43,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.png"
     }
   }
 }

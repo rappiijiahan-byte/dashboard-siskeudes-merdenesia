@@ -85,22 +85,33 @@ function Sidebar({ isCollapsed, onToggle }) {
         <aside className={`${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 bg-dark-800/50 border-r border-dark-600/50 flex flex-col`}>
             {/* Year Selector */}
             {!isCollapsed && (
-                <div className="p-4 border-b border-dark-600/50">
+                <div className="p-3 border-b border-dark-600/50">
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 block">
                         Tahun Anggaran
                     </label>
-                    <select
-                        value={selectedYear}
-                        onChange={handleYearChange}
-                        className="w-full px-3 py-2 bg-dark-700 border border-dark-500 rounded-lg text-cyan-400 font-semibold focus:outline-none focus:border-cyan-500 cursor-pointer"
-                    >
-                        {years.map(year => (
-                            <option key={year.tahun} value={year.tahun}>
-                                APBDes {year.tahun}
-                                {year.status === 'Active' ? ' (Aktif)' : ' (Arsip)'}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex gap-2">
+                        <select
+                            value={selectedYear}
+                            onChange={handleYearChange}
+                            className="flex-1 px-2 py-1 bg-dark-700 border border-dark-500 rounded-lg text-cyan-400 text-sm font-semibold focus:outline-none focus:border-cyan-500 cursor-pointer"
+                        >
+                            {years.map(year => (
+                                <option key={year.tahun} value={year.tahun}>
+                                    APBDes {year.tahun}
+                                    {year.status === 'Active' ? ' (Aktif)' : ' (Arsip)'}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={() => useAppStore.getState().openModal('addYear')}
+                            className="px-2 py-1 bg-dark-700 border border-dark-500 rounded-lg text-cyan-400 hover:bg-dark-600 hover:border-cyan-500 transition-colors"
+                            title="Tambah Tahun Anggaran Baru"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                    </div>
 
                     {/* Status Badge */}
                     <div className="mt-2 flex items-center gap-2">

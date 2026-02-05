@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, shell, ipcMain } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import __cjs_url__ from "node:url";
@@ -8,11 +8,18 @@ const __filename = __cjs_url__.fileURLToPath(import.meta.url);
 const __dirname = __cjs_path__.dirname(__filename);
 const require2 = __cjs_mod__.createRequire(import.meta.url);
 let database = null;
-try {
-  database = require2("./database.js").default;
-} catch (error) {
-  console.warn("Failed to load database module:", error.message);
-  console.warn("Version control persistence will be disabled");
+async function initDatabaseModule() {
+  try {
+    const dbModule = await import("./chunks/database-BApjDTxJ.js");
+    database = dbModule.default || dbModule;
+    if (database) {
+      database.initDatabase();
+      setupDatabaseHandlers();
+    }
+  } catch (error) {
+    console.warn("Failed to load database module:", error.message);
+    console.warn("Version control persistence will be disabled");
+  }
 }
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -56,60 +63,54 @@ function createWindow() {
   ipcMain.handle("window:isMaximized", () => mainWindow.isMaximized());
 }
 function setupDatabaseHandlers() {
-  ipcMain.handle("db:getBranches", () => {
-    return database.getBranches();
+  ipcMain.handle("db:getBranches", async () => {
+    return await database.getBranches();
   });
-  ipcMain.handle("db:saveBranch", (_, branch) => {
-    database.saveBranch(branch);
+  ipcMain.handle("db:saveBranch", async (_, branch) => {
+    await database.saveBranch(branch);
     return { success: true };
   });
-  ipcMain.handle("db:switchBranch", (_, branchName) => {
-    database.switchBranch(branchName);
+  ipcMain.handle("db:switchBranch", async (_, branchName) => {
+    await database.switchBranch(branchName);
     return { success: true };
   });
-  ipcMain.handle("db:updateBranchSnapshot", (_, branchName, snapshotId) => {
-    database.updateBranchSnapshot(branchName, snapshotId);
+  ipcMain.handle("db:updateBranchSnapshot", async (_, branchName, snapshotId) => {
+    await database.updateBranchSnapshot(branchName, snapshotId);
     return { success: true };
   });
-  ipcMain.handle("db:getCommits", (_, branchName) => {
-    return database.getCommits(branchName);
+  ipcMain.handle("db:getCommits", async (_, branchName) => {
+    return await database.getCommits(branchName);
   });
-  ipcMain.handle("db:saveCommit", (_, commit) => {
-    database.saveCommit(commit);
+  ipcMain.handle("db:saveCommit", async (_, commit) => {
+    await database.saveCommit(commit);
     return { success: true };
   });
-  ipcMain.handle("db:updateCommitStatus", (_, commitId, status) => {
-    database.updateCommitStatus(commitId, status);
+  ipcMain.handle("db:updateCommitStatus", async (_, commitId, status) => {
+    await database.updateCommitStatus(commitId, status);
     return { success: true };
   });
-  ipcMain.handle("db:saveSnapshot", (_, snapshot) => {
-    database.saveSnapshot(snapshot);
+  ipcMain.handle("db:saveSnapshot", async (_, snapshot) => {
+    await database.saveSnapshot(snapshot);
     return { success: true };
   });
-  ipcMain.handle("db:getSnapshot", (_, snapshotId) => {
-    return database.getSnapshot(snapshotId);
+  ipcMain.handle("db:getSnapshot", async (_, snapshotId) => {
+    return await database.getSnapshot(snapshotId);
   });
-  ipcMain.handle("db:getAllSnapshots", () => {
-    return database.getAllSnapshots();
+  ipcMain.handle("db:getAllSnapshots", async () => {
+    return await database.getAllSnapshots();
   });
-  ipcMain.handle("db:loadVersionData", () => {
-    return {
-      branches: database.getBranches(),
-      commits: database.getCommits(),
-      snapshots: database.getAllSnapshots()
-    };
+  ipcMain.handle("db:loadVersionData", async () => {
+    const [branches, commits, snapshots] = await Promise.all([
+      database.getBranches(),
+      database.getCommits(),
+      database.getAllSnapshots()
+    ]);
+    return { branches, commits, snapshots };
   });
 }
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId("com.apbdes.versioncontrol");
-  if (database) {
-    try {
-      database.initDatabase();
-      setupDatabaseHandlers();
-    } catch (error) {
-      console.warn("Database initialization failed:", error.message);
-    }
-  }
+  await initDatabaseModule();
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });

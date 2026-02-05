@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppStore, usePendapatanStore } from '../stores'
+import { exportPendapatanPage, downloadFile } from '../services/exportService'
 
 function PendapatanPage() {
     const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem } = useAppStore()
@@ -29,6 +30,17 @@ function PendapatanPage() {
     }
 
     const totalPendapatan = getTotalPendapatan()
+
+    const handleExport = async () => {
+        try {
+            const buffer = await exportPendapatanPage({ pendapatan }, selectedYear)
+            downloadFile(buffer, `Pendapatan_${selectedYear}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            addNotification({ type: 'success', message: 'Export berhasil' })
+        } catch (error) {
+            console.error(error)
+            addNotification({ type: 'error', message: 'Export gagal: ' + error.message })
+        }
+    }
 
     const handleAddCategory = () => {
         setEditingItem({ mode: 'add', type: 'category' })
@@ -75,14 +87,25 @@ function PendapatanPage() {
                     </p>
                 </div>
                 {!isArchived && (
-                    <button className="btn-cyber" onClick={handleAddCategory}>
-                        <span className="flex items-center gap-2">
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleExport}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                        >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
-                            Tambah Kategori
-                        </span>
-                    </button>
+                            Export Excel
+                        </button>
+                        <button className="btn-cyber" onClick={handleAddCategory}>
+                            <span className="flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Tambah Kategori
+                            </span>
+                        </button>
+                    </div>
                 )}
             </div>
 

@@ -2,27 +2,45 @@
 
 /**
  * SQLite Database Module for Version Control Persistence
- * This module handles all database operations in the Electron main process
+ * Refactored to use 'sql.js' (WASM) to avoid native build issues on Windows
  */
 
-import Database from 'better-sqlite3'
+import initSqlJs from 'sql.js'
 import path from 'path'
+import fs from 'fs'
 import { app } from 'electron'
 
 let db = null
+let dbPath = null
+
+/**
+ * Save the database to disk
+ */
+function persist() {
+    if (db && dbPath) {
+        const data = db.export()
+        const buffer = Buffer.from(data)
+        fs.writeFileSync(dbPath, buffer)
+    }
+}
 
 /**
  * Initialize the database connection and create tables
  */
-export function initDatabase() {
-    const dbPath = path.join(app.getPath('userData'), 'apbdes-versions.db')
-    db = new Database(dbPath)
+export async function initDatabase() {
+    dbPath = path.join(app.getPath('userData'), 'apbdes-versions.db')
 
-    // Enable foreign keys
-    db.pragma('foreign_keys = ON')
+    const SQL = await initSqlJs()
+
+    if (fs.existsSync(dbPath)) {
+        const fileBuffer = fs.readFileSync(dbPath)
+        db = new SQL.Database(fileBuffer)
+    } else {
+        db = new SQL.Database()
+    }
 
     // Create tables
-    db.exec(`
+    db.run(`
         CREATE TABLE IF NOT EXISTS branches (
             name TEXT PRIMARY KEY,
             is_current INTEGER DEFAULT 0,
@@ -57,11 +75,9 @@ export function initDatabase() {
     `)
 
     // Insert default 'main' branch if not exists
-    const insertBranch = db.prepare(`
-        INSERT OR IGNORE INTO branches (name, is_current) VALUES (?, ?)
-    `)
-    insertBranch.run('main', 1)
+    db.run('INSERT OR IGNORE INTO branches (name, is_current) VALUES (?, ?)', ['main', 1])
 
+    persist()
     console.log('Database initialized at:', dbPath)
     return db
 }
@@ -69,63 +85,72 @@ export function initDatabase() {
 /**
  * Get all branches
  */
-export function getBranches() {
-    const stmt = db.prepare('SELECT name, is_current, current_snapshot_id FROM branches')
-    return stmt.all().map(b => ({
-        name: b.name,
-        current: b.is_current === 1,
-        currentSnapshotId: b.current_snapshot_id
-    }))
+export async function getBranches() {
+    const res = db.exec('SELECT name, is_current, current_snapshot_id FROM branches')
+    if (res.length === 0) return []
+
+    const { columns, values } = res[0]
+    return values.map(v => {
+        const row = {}
+        columns.forEach((col, i) => row[col] = v[i])
+        return {
+            name: row.name,
+            current: row.is_current === 1,
+            currentSnapshotId: row.current_snapshot_id
+        }
+    })
 }
 
 /**
  * Save a new branch
  */
-export function saveBranch(branch) {
-    const stmt = db.prepare(`
+export async function saveBranch(branch) {
+    db.run(`
         INSERT OR REPLACE INTO branches (name, is_current, current_snapshot_id) 
         VALUES (?, ?, ?)
-    `)
-    stmt.run(branch.name, branch.current ? 1 : 0, branch.currentSnapshotId || null)
+    `, [branch.name, branch.current ? 1 : 0, branch.currentSnapshotId || null])
+    persist()
 }
 
 /**
- * Switch to a branch (update is_current flags)
+ * Switch to a branch
  */
-export function switchBranch(branchName) {
-    const updateAll = db.prepare('UPDATE branches SET is_current = 0')
-    const updateOne = db.prepare('UPDATE branches SET is_current = 1 WHERE name = ?')
-
-    db.transaction(() => {
-        updateAll.run()
-        updateOne.run(branchName)
-    })()
+export async function switchBranch(branchName) {
+    db.run('UPDATE branches SET is_current = 0')
+    db.run('UPDATE branches SET is_current = 1 WHERE name = ?', [branchName])
+    persist()
 }
 
 /**
  * Get all commits for a branch
  */
-export function getCommits(branchName = null) {
-    let stmt
+export async function getCommits(branchName = null) {
+    let res
     if (branchName) {
-        stmt = db.prepare('SELECT * FROM commits WHERE branch_name = ? ORDER BY created_at DESC')
-        return stmt.all(branchName).map(mapCommitFromDb)
+        res = db.exec('SELECT * FROM commits WHERE branch_name = ? ORDER BY created_at DESC', [branchName])
     } else {
-        stmt = db.prepare('SELECT * FROM commits ORDER BY created_at DESC')
-        return stmt.all().map(mapCommitFromDb)
+        res = db.exec('SELECT * FROM commits ORDER BY created_at DESC')
     }
+
+    if (res.length === 0) return []
+
+    const { columns, values } = res[0]
+    return values.map(v => {
+        const row = {}
+        columns.forEach((col, i) => row[col] = v[i])
+        return mapCommitFromDb(row)
+    })
 }
 
 /**
  * Save a new commit
  */
-export function saveCommit(commit) {
-    const stmt = db.prepare(`
+export async function saveCommit(commit) {
+    db.run(`
         INSERT OR REPLACE INTO commits 
         (id, version, message, author, branch_name, snapshot_id, status, changes_added, changes_modified, changes_deleted, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    stmt.run(
+    `, [
         commit.id,
         commit.version,
         commit.message,
@@ -137,65 +162,87 @@ export function saveCommit(commit) {
         commit.changes?.modified || 0,
         commit.changes?.deleted || 0,
         commit.date
-    )
+    ])
+    persist()
 }
 
 /**
  * Update commit status
  */
-export function updateCommitStatus(commitId, status) {
-    const stmt = db.prepare('UPDATE commits SET status = ? WHERE id = ?')
-    stmt.run(status, commitId)
+export async function updateCommitStatus(commitId, status) {
+    db.run('UPDATE commits SET status = ? WHERE id = ?', [status, commitId])
+    persist()
 }
 
 /**
  * Save a snapshot
  */
-export function saveSnapshot(snapshot) {
-    const stmt = db.prepare(`
+export async function saveSnapshot(snapshot) {
+    db.run(`
         INSERT OR REPLACE INTO snapshots (id, commit_id, data, timestamp)
         VALUES (?, ?, ?, ?)
-    `)
-    stmt.run(
+    `, [
         snapshot.id,
         snapshot.commitId || null,
         JSON.stringify(snapshot.data),
         snapshot.timestamp
-    )
+    ])
+    persist()
 }
 
 /**
  * Get a snapshot by ID
  */
-export function getSnapshot(snapshotId) {
-    const stmt = db.prepare('SELECT * FROM snapshots WHERE id = ?')
-    const row = stmt.get(snapshotId)
-    if (!row) return null
+export async function getSnapshot(snapshotId) {
+    const res = db.exec('SELECT * FROM snapshots WHERE id = ?', [snapshotId])
+    if (res.length === 0) return null
+
+    const { columns, values } = res[0]
+    const row = {}
+    columns.forEach((col, i) => row[col] = values[0][i])
+
+    let parsedData = {}
+    try {
+        parsedData = JSON.parse(row.data)
+    } catch (error) {
+        console.error(`Failed to parse snapshot data for ID ${row.id}:`, error)
+    }
 
     return {
         id: row.id,
         commitId: row.commit_id,
-        data: JSON.parse(row.data),
+        data: parsedData,
         timestamp: row.timestamp
     }
 }
 
 /**
- * Get all snapshots (as a map for efficiency)
+ * Get all snapshots
  */
-export function getAllSnapshots() {
-    const stmt = db.prepare('SELECT * FROM snapshots')
-    const rows = stmt.all()
+export async function getAllSnapshots() {
+    const res = db.exec('SELECT * FROM snapshots')
     const snapshots = {}
 
-    for (const row of rows) {
+    if (res.length === 0) return snapshots
+
+    const { columns, values } = res[0]
+    values.forEach(v => {
+        const row = {}
+        columns.forEach((col, i) => row[col] = v[i])
+        let parsedData = {}
+        try {
+            parsedData = JSON.parse(row.data)
+        } catch (error) {
+            console.error(`Failed to parse snapshot data for ID ${row.id}:`, error)
+        }
+
         snapshots[row.id] = {
             id: row.id,
             commitId: row.commit_id,
-            data: JSON.parse(row.data),
+            data: parsedData,
             timestamp: row.timestamp
         }
-    }
+    })
 
     return snapshots
 }
@@ -203,9 +250,9 @@ export function getAllSnapshots() {
 /**
  * Update branch's current snapshot
  */
-export function updateBranchSnapshot(branchName, snapshotId) {
-    const stmt = db.prepare('UPDATE branches SET current_snapshot_id = ? WHERE name = ?')
-    stmt.run(snapshotId, branchName)
+export async function updateBranchSnapshot(branchName, snapshotId) {
+    db.run('UPDATE branches SET current_snapshot_id = ? WHERE name = ?', [snapshotId, branchName])
+    persist()
 }
 
 /**
@@ -234,6 +281,7 @@ function mapCommitFromDb(row) {
  */
 export function closeDatabase() {
     if (db) {
+        persist()
         db.close()
         db = null
     }

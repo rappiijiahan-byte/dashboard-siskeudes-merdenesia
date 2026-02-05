@@ -1,0 +1,65 @@
+========================================================================
+    TUTORIAL & PENJELASAN UMUM: APBDes Version Control v1.0.0
+========================================================================
+
+1. PENJELASAN UMUM
+------------------
+APBDes Version Control adalah aplikasi manajemen anggaran desa (APBDes) modern yang mengadopsi konsep "Version Control" (seperti Git). Aplikasi ini dirancang untuk membantu perangkat desa mengelola revisi anggaran secara terstruktur, aman, dan transparan. 
+
+Dengan aplikasi ini, Anda tidak perlu lagi khawatir salah input atau kehilangan data lama karena setiap perubahan besar dapat disimpan ke dalam sebuah "Versi" atau "Commit" yang bisa dikembalikan (revert) sewaktu-waktu.
+
+2. ISTILAH KUNCI (KEYWORD)
+--------------------------
+Untuk menggunakan aplikasi ini secara maksimal, penting untuk memahami istilah berikut:
+
+- COMMIT: Proses menyimpan seluruh data anggaran saat ini menjadi sebuah versi permanen dalam riwayat. Anggap saja ini sebagai "Save" yang memiliki catatan pesan.
+- BRANCH (CABANG): Skenario atau jalur anggaran yang berbeda. Anda bisa membuat branch "Rancangan A" dan "Rancangan B" untuk membandingkan skenario pembangunan yang berbeda tanpa mencampuradukkan datanya.
+- REVERT: Mengembalikan seluruh data aplikasi ke kondisi pada versi (commit) tertentu di masa lalu.
+- SNAPSHOT: Gambar utuh dari seluruh data (Pendapatan, Belanja, Kegiatan, Pembiayaan) pada satu titik waktu tertentu.
+- HEAD: Penanda posisi versi aktif yang sedang Anda kerjakan saat ini.
+- GLASSMORPHISM: Gaya desain aplikasi yang tembus pandang (seperti kaca) untuk memberikan kesan modern dan premium (Cyber Aesthetic).
+
+3. MODUL APLIKASI
+-----------------
+Aplikasi dibagi menjadi beberapa bagian utama di Sidebar:
+- DASHBOARD: Ringkasan total anggaran, sisa pagu, dan grafik penggunaan.
+- KEGIATAN: Perencanaan bidang, sub-bidang, dan paket-paket kegiatan desa.
+- PENDAPATAN: Manajemen sumber dana masuk (PADes, Dana Desa, ADD, dll).
+- BELANJA: Rincian Anggaran Biaya (RAB) per rekening belanja.
+- PEMBIAYAAN 1: Penerimaan pembiayaan (Contoh: SILPA tahun sebelumnya).
+- PEMBIAYAAN 2: Pengeluaran pembiayaan (Contoh: Penyertaan modal BUMDes).
+- RIWAYAT VERSI: Tempat mengelola Commit, Branch, dan melakukan Revert.
+
+4. LANGKAH PENGGUNAAN (WORKFLOW)
+--------------------------------
+Langkah ideal dalam menggunakan aplikasi ini:
+
+A. Input Data Awal:
+   1. Masuk ke menu KEGIATAN untuk merencanakan paket pembangunan.
+   2. Masuk ke menu PENDAPATAN untuk menginput pagu indikatif sumber dana.
+   3. Masuk ke menu BELANJA untuk menyusun rincian biaya (RAB) agar sesuai dengan pagu.
+
+B. Menyimpan Versi (Commit):
+   1. Setelah selesai menginput satu tahap (misal: selesai input Pendapatan), kembali ke DASHBOARD.
+   2. Klik tombol "COMMIT BARU".
+   3. Masukkan pesan perubahan (Contoh: "Selesai input Pendapatan Tahap 1").
+   4. Klik "Simpan Versi".
+
+C. Mencoba Skenario (Branching):
+   1. Jika ingin mencoba revisi anggaran tanpa merusak data asli, masuk ke menu RIWAYAT VERSI.
+   2. Klik "NEW BRANCH" dan beri nama (Contoh: "revisi-infrastruktur").
+   3. Anda sekarang berada di jalur baru. Silakan ubah data sesuka hati.
+   4. Jika ingin kembali ke data asli, cukup klik nama branch "main" di panel kiri.
+
+D. Mengembalikan Data (Revert):
+   1. Jika terjadi kesalahan, buka menu RIWAYAT VERSI.
+   2. Klik pada salah satu titik waktu di riwayat (Commit History).
+   3. Tekan tombol "REVERT". Data Anda akan kembali persis seperti pada waktu tersebut.
+
+E. Export Hasil Akhir:
+   1. Klik tombol "EXPORT EXCEL" di Dashboard atau Modal Export.
+   2. Aplikasi akan menghasilkan file .xlsx yang rapi dan siap cetak.
+
+------------------------------------------------------------------------
+© 2026 Wahyu Hidayatulloh. All Rights Reserved.
+Aplikasi ini dibangun untuk kemudahan tata kelola keuangan desa yang lebih modern.

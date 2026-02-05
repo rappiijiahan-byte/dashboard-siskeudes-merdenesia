@@ -4,13 +4,20 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-// Database module - may fail if native module not built for Electron
+// Database module initialization
 let database = null
-try {
-    database = require('./database.js').default
-} catch (error) {
-    console.warn('Failed to load database module:', error.message)
-    console.warn('Version control persistence will be disabled')
+async function initDatabaseModule() {
+    try {
+        const dbModule = await import('./database.js')
+        database = dbModule.default || dbModule
+        if (database) {
+            database.initDatabase()
+            setupDatabaseHandlers()
+        }
+    } catch (error) {
+        console.warn('Failed to load database module:', error.message)
+        console.warn('Version control persistence will be disabled')
+    }
 }
 
 function createWindow() {
@@ -64,76 +71,70 @@ function createWindow() {
 // Setup database IPC handlers
 function setupDatabaseHandlers() {
     // Branches
-    ipcMain.handle('db:getBranches', () => {
-        return database.getBranches()
+    ipcMain.handle('db:getBranches', async () => {
+        return await database.getBranches()
     })
 
-    ipcMain.handle('db:saveBranch', (_, branch) => {
-        database.saveBranch(branch)
+    ipcMain.handle('db:saveBranch', async (_, branch) => {
+        await database.saveBranch(branch)
         return { success: true }
     })
 
-    ipcMain.handle('db:switchBranch', (_, branchName) => {
-        database.switchBranch(branchName)
+    ipcMain.handle('db:switchBranch', async (_, branchName) => {
+        await database.switchBranch(branchName)
         return { success: true }
     })
 
-    ipcMain.handle('db:updateBranchSnapshot', (_, branchName, snapshotId) => {
-        database.updateBranchSnapshot(branchName, snapshotId)
+    ipcMain.handle('db:updateBranchSnapshot', async (_, branchName, snapshotId) => {
+        await database.updateBranchSnapshot(branchName, snapshotId)
         return { success: true }
     })
 
     // Commits
-    ipcMain.handle('db:getCommits', (_, branchName) => {
-        return database.getCommits(branchName)
+    ipcMain.handle('db:getCommits', async (_, branchName) => {
+        return await database.getCommits(branchName)
     })
 
-    ipcMain.handle('db:saveCommit', (_, commit) => {
-        database.saveCommit(commit)
+    ipcMain.handle('db:saveCommit', async (_, commit) => {
+        await database.saveCommit(commit)
         return { success: true }
     })
 
-    ipcMain.handle('db:updateCommitStatus', (_, commitId, status) => {
-        database.updateCommitStatus(commitId, status)
+    ipcMain.handle('db:updateCommitStatus', async (_, commitId, status) => {
+        await database.updateCommitStatus(commitId, status)
         return { success: true }
     })
 
     // Snapshots
-    ipcMain.handle('db:saveSnapshot', (_, snapshot) => {
-        database.saveSnapshot(snapshot)
+    ipcMain.handle('db:saveSnapshot', async (_, snapshot) => {
+        await database.saveSnapshot(snapshot)
         return { success: true }
     })
 
-    ipcMain.handle('db:getSnapshot', (_, snapshotId) => {
-        return database.getSnapshot(snapshotId)
+    ipcMain.handle('db:getSnapshot', async (_, snapshotId) => {
+        return await database.getSnapshot(snapshotId)
     })
 
-    ipcMain.handle('db:getAllSnapshots', () => {
-        return database.getAllSnapshots()
+    ipcMain.handle('db:getAllSnapshots', async () => {
+        return await database.getAllSnapshots()
     })
 
     // Load all version data at once (for initial load)
-    ipcMain.handle('db:loadVersionData', () => {
-        return {
-            branches: database.getBranches(),
-            commits: database.getCommits(),
-            snapshots: database.getAllSnapshots()
-        }
+    ipcMain.handle('db:loadVersionData', async () => {
+        const [branches, commits, snapshots] = await Promise.all([
+            database.getBranches(),
+            database.getCommits(),
+            database.getAllSnapshots()
+        ])
+        return { branches, commits, snapshots }
     })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.apbdes.versioncontrol')
 
-    // Initialize database (only if module loaded successfully)
-    if (database) {
-        try {
-            database.initDatabase()
-            setupDatabaseHandlers()
-        } catch (error) {
-            console.warn('Database initialization failed:', error.message)
-        }
-    }
+    // Initialize database
+    await initDatabaseModule()
 
     app.on('browser-window-created', (_, window) => {
         optimizer.watchWindowShortcuts(window)

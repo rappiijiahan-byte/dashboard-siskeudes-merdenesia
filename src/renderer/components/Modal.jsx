@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, usePendapatanStore, useBelanjaStore, useVersionStore, useKegiatanStore, usePembiayaan1Store, usePembiayaan2Store } from '../stores'
 import { exportToExcel, downloadFile } from '../services/exportService'
+import { exportDatabase, importDatabase } from '../services/backupService'
 
 function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     if (!isOpen) return null
@@ -294,6 +295,8 @@ export function ExportModal() {
     const { modals, closeModal, addNotification, selectedYear, currentProject } = useAppStore()
     const { pendapatan } = usePendapatanStore()
     const { bidangData } = useBelanjaStore()
+    const { kategoriPembiayaan1 } = usePembiayaan1Store()
+    const { kategoriPembiayaan2 } = usePembiayaan2Store()
     const [isExporting, setIsExporting] = useState(false)
 
     const handleExport = async (format) => {
@@ -303,6 +306,8 @@ export function ExportModal() {
             const exportData = {
                 pendapatan,
                 belanja: bidangData,
+                pembiayaan1: kategoriPembiayaan1,
+                pembiayaan2: kategoriPembiayaan2,
                 tahun: selectedYear,
                 version: currentProject?.currentVersion || '1.0'
             }
@@ -702,18 +707,51 @@ export function PaketDetailModal() {
     return (
         <Modal isOpen={isOpen} onClose={() => closeModal('viewPaket')} title="📋 Rincian Paket Kegiatan" size="lg">
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-600/50">
-                    <div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pb-6 border-b border-dark-600/50">
+                    <div className="md:col-span-3">
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="px-2 py-0.5 rounded bg-dark-700 border border-dark-600 text-gray-400 text-xs font-mono">
+                                ID: {paket.noID || '-'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${paket.pktd === 'PKTD' ? 'bg-purple-500/10 text-purple-400' : 'bg-gray-700/30 text-gray-500'}`}>
+                                {paket.pktd || 'NON-PKTD'}
+                            </span>
+                        </div>
                         <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Nama Paket</p>
                         <p className="text-lg font-bold text-white">{paket.nama}</p>
                     </div>
+
                     <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Uraian Output</p>
-                        <p className="text-white">{paket.uraianOutput}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Nilai (Rp)</p>
+                        <p className="text-cyan-400 font-mono font-bold text-lg">
+                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paket.nilai || 0)}
+                        </p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Volume/Satuan</p>
-                        <p className="text-white font-mono">{paket.volume} {paket.satuan}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Sumber Dana</p>
+                        <p className="text-white">{paket.sumberDana || '-'}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Pola Kegiatan</p>
+                        <p className="text-white">{paket.polaKegiatan || '-'}</p>
+                    </div>
+
+                    <div className="md:col-span-3">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Uraian Output</p>
+                        <p className="text-gray-300 bg-dark-700/30 p-3 rounded-lg border border-dark-600/30">{paket.uraianOutput || '-'}</p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Target Output</p>
+                        <p className="text-white font-mono">{paket.targetOutput || 0} {paket.satuan}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Sifat Kegiatan</p>
+                        <p className="text-white">{paket.sifatKegiatan || '-'}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Lokasi</p>
+                        <p className="text-white">{paket.lokasiKegiatan || '-'}</p>
                     </div>
                 </div>
 
@@ -793,40 +831,143 @@ export function KegiatanFormsModal() {
     if (!isOpen || !context) return null
 
     const title = `${context.mode === 'edit' ? '✏️ Edit' : '➕ Tambah'} ${context.type === 'subBidang' ? 'Sub Bidang' :
-        context.type === 'kegiatan' ? 'Kegiatan' : 'Paket Pekerjaan'
+        context.type === 'kegiatan' ? 'Kegiatan' : 'Paket Kegiatan'
         }`
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={title} size={context.type === 'paket' ? 'md' : 'sm'}>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                {context.type !== 'paket' ? (
-                    <>
+        <Modal isOpen={isOpen} onClose={handleClose} title={title} size="lg">
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
+                {/* GLOBAL KODE & NAMA (Shared across types) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {context.type === 'paket' ? (
+                        <>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">NO ID</label>
+                                <input type="text" className="input-cyber" value={form.noID || ''} onChange={e => setForm({ ...form, noID: e.target.value })} placeholder="001" required />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs text-gray-400 mb-1">NAMA PAKET</label>
+                                <input type="text" className="input-cyber" value={form.nama || ''} onChange={e => setForm({ ...form, nama: e.target.value })} placeholder="Nama Paket Kegiatan" required />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">KODE</label>
+                                <input type="text" className="input-cyber" value={form.kode || ''} onChange={e => setForm({ ...form, kode: e.target.value })} placeholder="Kode..." required />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs text-gray-400 mb-1">{context.type === 'subBidang' ? 'NAMA SUB BIDANG' : 'NAMA KEGIATAN'}</label>
+                                <input type="text" className="input-cyber" value={form.nama || ''} onChange={e => setForm({ ...form, nama: e.target.value })} placeholder="Nama..." required />
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* FORM KEGIATAN SPECIFIC FIELDS */}
+                {context.type === 'kegiatan' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-dark-600/50">
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">KODE</label>
-                            <input type="text" className="input-cyber" value={form.kode || ''} onChange={e => setForm({ ...form, kode: e.target.value })} placeholder="Contoh: 01.01. atau 01.01.01." required />
+                            <label className="block text-xs text-gray-400 mb-1">LOKASI</label>
+                            <input type="text" className="input-cyber" value={form.lokasi || ''} onChange={e => setForm({ ...form, lokasi: e.target.value })} placeholder="Lokasi Kegiatan" />
                         </div>
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">NAMA</label>
-                            <input type="text" className="input-cyber" value={form.nama || ''} onChange={e => setForm({ ...form, nama: e.target.value })} placeholder="Masukkan nama..." required />
+                            <label className="block text-xs text-gray-400 mb-1">WAKTU (Durasi)</label>
+                            <input type="text" className="input-cyber" value={form.waktu || ''} onChange={e => setForm({ ...form, waktu: e.target.value })} placeholder="12 Bulan" />
                         </div>
-                    </>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">NAMA PAKET</label>
-                            <input type="text" className="input-cyber" value={form.nama || ''} onChange={e => setForm({ ...form, nama: e.target.value })} required />
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">NAMA PELAKSANA</label>
+                            <input type="text" className="input-cyber" value={form.namaPelaksana || ''} onChange={e => setForm({ ...form, namaPelaksana: e.target.value })} placeholder="Kasi/Kaur..." />
                         </div>
-                        <div className="col-span-2">
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">JABATAN PPKD</label>
+                            <input type="text" className="input-cyber" value={form.jabatanPPKD || ''} onChange={e => setForm({ ...form, jabatanPPKD: e.target.value })} placeholder="Ketua TPK..." />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">KELUARAN (Output)</label>
+                            <input type="text" className="input-cyber" value={form.keluaran || ''} onChange={e => setForm({ ...form, keluaran: e.target.value })} placeholder="Uraian Keluaran..." />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 md:col-span-2">
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">VOLUME</label>
+                                <input type="number" className="input-cyber" value={form.volumeKeluaran || ''} onChange={e => setForm({ ...form, volumeKeluaran: e.target.value })} placeholder="1" />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">SATUAN</label>
+                                <input type="text" className="input-cyber" value={form.satuan || ''} onChange={e => setForm({ ...form, satuan: e.target.value })} placeholder="Unit/Kegiatan" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">PAGU (Rp)</label>
+                            <input type="number" className="input-cyber font-bold text-cyan-400" value={form.pagu || ''} onChange={e => setForm({ ...form, pagu: e.target.value })} placeholder="0" />
+                        </div>
+                    </div>
+                )}
+
+                {/* FORM PAKET SPECIFIC FIELDS */}
+                {context.type === 'paket' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-dark-600/50">
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">NILAI (Rp)</label>
+                            <input type="number" className="input-cyber font-bold text-green-400" value={form.nilai || ''} onChange={e => setForm({ ...form, nilai: e.target.value })} placeholder="0" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">POLA KEGIATAN</label>
+                            <select className="input-cyber" value={form.polaKegiatan || ''} onChange={e => setForm({ ...form, polaKegiatan: e.target.value })}>
+                                <option value="Swakelola">Swakelola</option>
+                                <option value="Kerjasama">Kerjasama</option>
+                                <option value="Pihak Ketiga">Pihak Ketiga</option>
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
                             <label className="block text-xs text-gray-400 mb-1">URAIAN OUTPUT</label>
-                            <input type="text" className="input-cyber" value={form.uraianOutput || ''} onChange={e => setForm({ ...form, uraianOutput: e.target.value })} required />
+                            <textarea className="input-cyber h-20" value={form.uraianOutput || ''} onChange={e => setForm({ ...form, uraianOutput: e.target.value })} placeholder="Deskripsi output..."></textarea>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 md:col-span-2">
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">TARGET OUTPUT</label>
+                                <input type="number" className="input-cyber" value={form.targetOutput || ''} onChange={e => setForm({ ...form, targetOutput: e.target.value })} placeholder="1" />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">SATUAN</label>
+                                <input type="text" className="input-cyber" value={form.satuan || 'OB'} onChange={e => setForm({ ...form, satuan: e.target.value })} placeholder="OB" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">SUMBER DANA</label>
+                            <select className="input-cyber" value={form.sumberDana || ''} onChange={e => setForm({ ...form, sumberDana: e.target.value })}>
+                                <option value="">Pilih Sumber Dana</option>
+                                <option value="Pendapatan Asli Desa">Pendapatan Asli Desa</option>
+                                <option value="Alokasi Dana Desa">Alokasi Dana Desa</option>
+                                <option value="Dana Desa (Dropping APBN)">Dana Desa (Dropping APBN)</option>
+                                <option value="Penerimaan Bagi Hasil Pajak Retribusi">Bagi Hasil Pajak & Retribusi</option>
+                                <option value="Penerimaan Bantuan Keuangan Kabupaten">Bankeu Kabupaten</option>
+                                <option value="Penerimaan Bantuan Keuangan Propinsi">Bankeu Propinsi</option>
+                            </select>
                         </div>
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">VOLUME</label>
-                            <input type="number" step="0.01" className="input-cyber" value={form.volume || ''} onChange={e => setForm({ ...form, volume: e.target.value })} required />
+                            <label className="block text-xs text-gray-400 mb-1">SIFAT KEGIATAN</label>
+                            <select className="input-cyber" value={form.sifatKegiatan || ''} onChange={e => setForm({ ...form, sifatKegiatan: e.target.value })}>
+                                <option value="Fisik">Fisik</option>
+                                <option value="Non Fisik">Non Fisik</option>
+                                <option value="Non Fisik-Lainnya">Non Fisik-Lainnya</option>
+                            </select>
                         </div>
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">SATUAN</label>
-                            <input type="text" className="input-cyber" value={form.satuan || ''} onChange={e => setForm({ ...form, satuan: e.target.value })} required />
+                            <label className="block text-xs text-gray-400 mb-1">LOKASI PAKET</label>
+                            <input type="text" className="input-cyber" value={form.lokasiKegiatan || ''} onChange={e => setForm({ ...form, lokasiKegiatan: e.target.value })} placeholder="Lokasi spesifik..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">JENIS PKTD</label>
+                            <select className="input-cyber" value={form.pktd || ''} onChange={e => setForm({ ...form, pktd: e.target.value })}>
+                                <option value="NON-PKTD">NON-PKTD</option>
+                                <option value="PKTD">PKTD</option>
+                            </select>
                         </div>
                     </div>
                 )}
@@ -840,10 +981,11 @@ export function KegiatanFormsModal() {
 }
 
 // Pembiayaan Modal
+// Pembiayaan Modal
 export function PembiayaanModal() {
     const { modals, closeModal, editingItem, setEditingItem, addNotification } = useAppStore()
-    const { addItem: addP1, updateItem: updateP1 } = usePembiayaan1Store()
-    const { addItem: addP2, updateItem: updateP2 } = usePembiayaan2Store()
+    const { addItem: addP1, updateItem: updateP1, addRapRinci: addRinciP1, updateRapRinci: updateRinciP1 } = usePembiayaan1Store()
+    const { addItem: addP2, updateItem: updateP2, addRapRinci: addRinciP2, updateRapRinci: updateRinciP2 } = usePembiayaan2Store()
 
     const isOpen = modals.pembiayaan
     const context = editingItem // { mode, type, data, parentKeys, storeType: 'p1' | 'p2' }
@@ -855,7 +997,10 @@ export function PembiayaanModal() {
             if (context.mode === 'edit' && context.data) {
                 setForm(context.data)
             } else {
-                setForm({ uraian: '', volume: 1, satuan: 'Unit', harga: 0, sumberDana: '' })
+                setForm(context.type === 'rapRinci'
+                    ? { uraian: '', volume: 0, satuan: '', hargaSatuan: 0, sumberDana: 'Pendapatan Asli Desa' }
+                    : { kode: '', uraian: '', jumlah: 0, rapRinci: [] }
+                )
             }
         }
     }, [isOpen, context])
@@ -865,32 +1010,62 @@ export function PembiayaanModal() {
         setEditingItem(null)
     }
 
+    const SUMBER_DANA_OPTIONS = [
+        'Pendapatan Asli Desa',
+        'Alokasi Dana Desa',
+        'Dana Desa (Dropping APBN)',
+        'Penerimaan Bagi Hasil Pajak Retribusi',
+        'Penerimaan Bantuan Keuangan Kabupaten',
+        'Penerimaan Bantuan Keuangan Provinsi',
+        'Swadaya Masyarakat'
+    ]
+
     const handleSubmit = (e) => {
         e.preventDefault()
-        // Extract properties carefully as they might come from different versions of the pages
-        const { mode, parentKeys, storeType, pageType, katKode, subKode, data } = context
+        const { mode, type, parentKeys, storeType, pageType, katKode, subKode, data, itemId } = context
 
         const currentStoreType = (storeType || pageType || '').toLowerCase()
         const kategori = parentKeys?.kategori || katKode
         const sub = parentKeys?.sub || subKode
+        // For RAP Rinci, we need the parent RAP (item) ID.
+        // It might be passed in parentKeys.item or itemId directly.
+        // We will standardise on parentKeys.item in the Page component.
+        const parentItemId = parentKeys?.item || itemId
 
         const numericData = {
             ...form,
-            volume: parseFloat(form.volume) || 0,
-            harga: typeof form.harga === 'string' ? parseInt(form.harga.replace(/\D/g, '')) || 0 : form.harga,
-            jumlah: (parseFloat(form.volume) || 0) * (typeof form.harga === 'string' ? parseInt(form.harga.replace(/\D/g, '')) || 0 : form.harga)
+            jumlah: typeof form.jumlah === 'string' ? parseInt(form.jumlah.replace(/\D/g, '')) || 0 : (form.jumlah || 0),
+            volume: typeof form.volume === 'string' ? parseFloat(form.volume) || 0 : (form.volume || 0),
+            hargaSatuan: typeof form.hargaSatuan === 'string' ? parseInt(form.hargaSatuan.replace(/\D/g, '')) || 0 : (form.hargaSatuan || 0)
         }
 
         try {
             if (currentStoreType === 'p1') {
-                if (mode === 'edit') updateP1(kategori, sub, data.id, numericData)
-                else addP1(kategori, sub, numericData)
+                if (type === 'rapRinci') {
+                    if (mode === 'edit') updateRinciP1(kategori, sub, parentItemId, data.id, numericData)
+                    else addRinciP1(kategori, sub, parentItemId, numericData)
+                } else if (type === 'subKategori') {
+                    if (mode === 'edit') usePembiayaan1Store.getState().updateSubKategori(kategori, data.kode, form)
+                    else usePembiayaan1Store.getState().addSubKategori(kategori, form)
+                } else {
+                    // RAP (Item)
+                    if (mode === 'edit') updateP1(kategori, sub, data.id, numericData)
+                    else addP1(kategori, sub, numericData)
+                }
             } else {
-                if (mode === 'edit') updateP2(kategori, sub, data.id, numericData)
-                else addP2(kategori, sub, numericData)
+                if (type === 'rapRinci') {
+                    if (mode === 'edit') updateRinciP2(kategori, sub, parentItemId, data.id, numericData)
+                    else addRinciP2(kategori, sub, parentItemId, numericData)
+                } else if (type === 'subKategori') {
+                    if (mode === 'edit') usePembiayaan2Store.getState().updateSubKategori(kategori, data.kode, form)
+                    else usePembiayaan2Store.getState().addSubKategori(kategori, form)
+                } else {
+                    if (mode === 'edit') updateP2(kategori, sub, data.id, numericData)
+                    else addP2(kategori, sub, numericData)
+                }
             }
 
-            addNotification({ type: 'success', message: `Data pembiayaan berhasil ${mode === 'edit' ? 'diupdate' : 'ditambahkan'}` })
+            addNotification({ type: 'success', message: `Data berhasil ${mode === 'edit' ? 'diupdate' : 'ditambahkan'}` })
             handleClose()
         } catch (error) {
             console.error('Pembiayaan submit error:', error)
@@ -899,28 +1074,66 @@ export function PembiayaanModal() {
     }
 
     if (!isOpen || !context) return null
+    const isRinci = context.type === 'rapRinci'
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={`${context.mode === 'edit' ? '✏️ Edit' : '➕ Tambah'} Rincian Pembiayaan`} size="md">
+        <Modal isOpen={isOpen} onClose={handleClose} title={`${context.mode === 'edit' ? '✏️ Edit' : '➕ Tambah'} ${isRinci ? 'RAP Rinci' : 'RAP'}`} size="md">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className="block text-xs text-gray-400 mb-1">URAIAN</label>
-                        <input type="text" className="input-cyber" value={form.uraian || ''} onChange={e => setForm({ ...form, uraian: e.target.value })} required />
+                {!isRinci ? (
+                    // RAP Form
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">KODE</label>
+                            <input type="text" className="input-cyber font-mono" value={form.kode || ''} onChange={e => setForm({ ...form, kode: e.target.value })} placeholder="Contoh: 6.1.1.01.01" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">URAIAN</label>
+                            <input type="text" className="input-cyber" value={form.uraian || ''} onChange={e => setForm({ ...form, uraian: e.target.value })} placeholder="Masukkan uraian..." required />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs text-gray-400 mb-1">VOLUME</label>
-                        <input type="number" step="0.01" className="input-cyber" value={form.volume || ''} onChange={e => setForm({ ...form, volume: e.target.value })} required />
+                ) : (
+                    // RAP Rinci Form
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">URAIAN</label>
+                            <input type="text" className="input-cyber" value={form.uraian || ''} onChange={e => setForm({ ...form, uraian: e.target.value })} placeholder="Rincian..." required />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">VOLUME</label>
+                            <input type="number" step="0.01" className="input-cyber" value={form.volume || ''} onChange={e => setForm({ ...form, volume: e.target.value })} required />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">SATUAN</label>
+                            <input type="text" className="input-cyber" value={form.satuan || ''} onChange={e => setForm({ ...form, satuan: e.target.value })} placeholder="Contoh: Org/Bln" required />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">HARGA SATUAN (Rp)</label>
+                            <input type="number" className="input-cyber font-mono" value={form.hargaSatuan || ''} onChange={e => setForm({ ...form, hargaSatuan: e.target.value })} required />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">JUMLAH (Rp)</label>
+                            {/* Readonly calc */}
+                            <div className="input-cyber bg-dark-800/50 text-gray-400 flex items-center">
+                                {new Intl.NumberFormat('id-ID').format((parseFloat(form.volume) || 0) * (parseFloat(form.hargaSatuan) || 0))}
+                            </div>
+                        </div>
+
+                        <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">SUMBER DANA</label>
+                            <select
+                                className="input-cyber bg-dark-800"
+                                value={form.sumberDana || SUMBER_DANA_OPTIONS[0]}
+                                onChange={e => setForm({ ...form, sumberDana: e.target.value })}
+                            >
+                                {SUMBER_DANA_OPTIONS.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs text-gray-400 mb-1">SATUAN</label>
-                        <input type="text" className="input-cyber" value={form.satuan || ''} onChange={e => setForm({ ...form, satuan: e.target.value })} required />
-                    </div>
-                    <div className="col-span-2">
-                        <label className="block text-xs text-gray-400 mb-1">HARGA SATUAN (Rp)</label>
-                        <input type="text" className="input-cyber font-bold text-cyan-400" value={form.harga || ''} onChange={e => setForm({ ...form, harga: e.target.value })} required />
-                    </div>
-                </div>
+                )}
                 <div className="flex gap-3 justify-end mt-6">
                     <button type="button" onClick={handleClose} className="btn-ghost">Batal</button>
                     <button type="submit" className="btn-cyber">Simpan</button>
@@ -929,6 +1142,7 @@ export function PembiayaanModal() {
         </Modal>
     )
 }
+
 
 // Compare Modal
 export function CompareModal() {
@@ -1015,6 +1229,155 @@ export function CompareModal() {
 
                 <div className="flex justify-end pt-4">
                     <button onClick={handleClose} className="btn-cyber">Tutup</button>
+                </div>
+            </div>
+        </Modal>
+    )
+}
+
+// Add New Year Modal
+export function AddYearModal() {
+    const { modals, closeModal, addYear, years, addNotification } = useAppStore()
+    const isOpen = modals.addYear
+    const [year, setYear] = useState('')
+
+    useEffect(() => {
+        if (isOpen) {
+            // Suggest next year based on max existing year
+            const maxYear = Math.max(...years.map(y => y.tahun))
+            setYear(maxYear + 1)
+        }
+    }, [isOpen, years])
+
+    const handleSubmit = (e) => {
+        e.preventDefault()
+        const newYear = parseInt(year)
+
+        if (years.some(y => y.tahun === newYear)) {
+            addNotification({ type: 'error', message: `Tahun ${newYear} sudah ada!` })
+            return
+        }
+
+        addYear(newYear)
+        addNotification({ type: 'success', message: `Tahun Anggaran ${newYear} berhasil ditambahkan` })
+        closeModal('addYear')
+    }
+
+    if (!isOpen) return null
+
+    return (
+        <Modal isOpen={isOpen} onClose={() => closeModal('addYear')} title="📅 Tambah Tahun Anggaran Baru" size="sm">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-cyan-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-cyan-300">
+                        Menambahkan tahun baru akan membuat database kosong untuk tahun tersebut. Data tahun sebelumnya tetap tersimpan sebagai arsip.
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-xs text-gray-400 mb-1">TAHUN ANGGARAN</label>
+                    <input
+                        type="number"
+                        className="input-cyber text-center text-lg font-bold tracking-widest"
+                        value={year}
+                        onChange={e => setYear(e.target.value)}
+                        min="2020"
+                        max="2050"
+                        required
+                    />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => closeModal('addYear')} className="px-4 py-2 rounded-lg hover:bg-dark-600 text-gray-400 text-sm">Batal</button>
+                    <button type="submit" className="btn-cyber">✨ Tambah Tahun</button>
+                </div>
+            </form>
+        </Modal>
+    )
+}
+
+// Backup Modal
+export function BackupModal() {
+    const { modals, closeModal, addNotification } = useAppStore()
+    const isOpen = modals.backup
+
+    const handleBackup = () => {
+        if (exportDatabase()) {
+            addNotification({ type: 'success', message: 'Backup berhasil diunduh' })
+            closeModal('backup')
+        } else {
+            addNotification({ type: 'error', message: 'Gagal membuat backup' })
+        }
+    }
+
+    const handleRestore = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        if (window.confirm('PERINGATAN: Restore akan menimpa SEMUA data saat ini dengan data dari file backup. Lanjutkan?')) {
+            try {
+                await importDatabase(file)
+                addNotification({ type: 'success', message: 'Database berhasil direstore!' })
+                closeModal('backup')
+                // Force reload to ensure all stores are pristine
+                setTimeout(() => window.location.reload(), 1000)
+            } catch (err) {
+                addNotification({ type: 'error', message: 'Gagal restore database (File corrupt atau format salah)' })
+            }
+        }
+        e.target.value = null // Reset input
+    }
+
+    if (!isOpen) return null
+
+    return (
+        <Modal isOpen={isOpen} onClose={() => closeModal('backup')} title="💾 Backup & Restore Database" size="md">
+            <div className="space-y-6">
+                <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg flex items-start gap-3">
+                    <svg className="w-6 h-6 text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <h4 className="text-blue-400 font-bold text-sm mb-1">Informasi Penting</h4>
+                        <p className="text-xs text-blue-300">
+                            Fitur ini akan menyimpan seluruh data aplikasi (Pendapatan, Belanja, Kegiatan) ke dalam file JSON.
+                            Simpan file ini di tempat aman (Flashdisk/Google Drive).
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Backup Section */}
+                    <div className="border border-dark-600 rounded-xl p-4 bg-dark-700/30 hover:bg-dark-700/50 transition text-center group">
+                        <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
+                            <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                        </div>
+                        <h3 className="text-white font-bold mb-1">Download Backup</h3>
+                        <p className="text-xs text-gray-400 mb-4">Simpan data ke file .json</p>
+                        <button onClick={handleBackup} className="w-full btn-cyber bg-green-500/10 border-green-500/50 hover:bg-green-500/20 text-green-400">
+                            Download
+                        </button>
+                    </div>
+
+                    {/* Restore Section */}
+                    <div className="border border-dark-600 rounded-xl p-4 bg-dark-700/30 hover:bg-dark-700/50 transition text-center group">
+                        <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
+                            <svg className="w-6 h-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" className="rotate-180" />
+                            </svg>
+                        </div>
+                        <h3 className="text-white font-bold mb-1">Restore Backup</h3>
+                        <p className="text-xs text-gray-400 mb-4">Muat data dari file .json</p>
+                        <label className="w-full btn-cyber bg-yellow-500/10 border-yellow-500/50 hover:bg-yellow-500/20 text-yellow-400 cursor-pointer block">
+                            Upload File
+                            <input type="file" accept=".json" onChange={handleRestore} className="hidden" />
+                        </label>
+                    </div>
                 </div>
             </div>
         </Modal>

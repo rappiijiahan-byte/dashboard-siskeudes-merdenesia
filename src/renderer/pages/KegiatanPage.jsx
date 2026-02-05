@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppStore, useKegiatanStore } from '../stores'
+import { exportKegiatanPage, downloadFile } from '../services/exportService'
 
 function KegiatanPage() {
     const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem } = useAppStore()
@@ -95,6 +96,17 @@ function KegiatanPage() {
 
     const totalPaket = getTotalPaket()
 
+    const handleExport = async () => {
+        try {
+            const buffer = await exportKegiatanPage({ bidangKegiatan }, selectedYear)
+            downloadFile(buffer, `Kegiatan_${selectedYear}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            addNotification({ type: 'success', message: 'Export berhasil' })
+        } catch (error) {
+            console.error(error)
+            addNotification({ type: 'error', message: 'Export gagal: ' + error.message })
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -105,6 +117,17 @@ function KegiatanPage() {
                         Pengelolaan Bidang, Sub Bidang, Kegiatan & Paket - APBDes {selectedYear}
                     </p>
                 </div>
+                {!isArchived && (
+                    <button
+                        onClick={handleExport}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export Excel
+                    </button>
+                )}
             </div>
 
             {/* Archive Warning */}
@@ -313,7 +336,7 @@ function KegiatanPage() {
                                                                                     <td className="py-2 pr-4 font-mono text-cyan-400">{String(idx + 1).padStart(2, '0')}</td>
                                                                                     <td className="py-2 pr-4 text-gray-300">{paket.nama}</td>
                                                                                     <td className="py-2 pr-4 text-gray-400">{paket.uraianOutput}</td>
-                                                                                    <td className="py-2 pr-4 text-right text-gray-300">{paket.volume.toFixed(2)}</td>
+                                                                                    <td className="py-2 pr-4 text-right text-gray-300">{(paket.volume || 0).toFixed(2)}</td>
                                                                                     <td className="py-2 pr-4 text-gray-400">{paket.satuan}</td>
                                                                                     <td className="py-2">
                                                                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

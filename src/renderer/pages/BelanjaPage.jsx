@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, useBelanjaStore, usePendapatanStore } from '../stores'
-import { exportToExcel, downloadFile } from '../services/exportService'
+import { exportBelanjaPage, downloadFile } from '../services/exportService'
 
 function BelanjaPage() {
     const { addNotification, isArchiveMode, selectedYear, openModal, setEditingItem, currentProject } = useAppStore()
@@ -74,12 +74,13 @@ function BelanjaPage() {
 
     const handleExportExcel = async () => {
         try {
-            const buffer = await exportToExcel({ pendapatan, belanja: bidangData, tahun: selectedYear })
-            const filename = `APBDes_Belanja_${selectedYear}_v${currentProject?.currentVersion || '1.0'}.xlsx`
+            const buffer = await exportBelanjaPage({ bidangData }, selectedYear)
+            const filename = `Belanja_${selectedYear}.xlsx`
             downloadFile(buffer, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             addNotification({ type: 'success', message: 'Excel export success!' })
         } catch (error) {
-            addNotification({ type: 'error', message: 'Excel export failed' })
+            console.error(error)
+            addNotification({ type: 'error', message: 'Excel export failed: ' + error.message })
         }
     }
 
@@ -130,9 +131,14 @@ function BelanjaPage() {
                     <p className="text-gray-400 mt-1">Penyusunan anggaran belanja APBDes {selectedYear}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={handleExportExcel} className="p-2 px-4 bg-green-600/20 text-green-400 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-all flex items-center gap-2 text-sm font-semibold">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                        Export XLS
+                    <button
+                        onClick={handleExportExcel}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export Excel
                     </button>
                 </div>
             </div>
